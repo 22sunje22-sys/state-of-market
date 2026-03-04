@@ -11,17 +11,18 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
 
 /* AUTH */
-#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f1117 0%,#1a1f2e 100%)}
-.auth-card{background:#1e2436;border:1px solid #2d3748;border-radius:16px;padding:48px 40px;width:100%;max-width:420px;text-align:center}
-.auth-logo{font-size:28px;font-weight:700;color:#fff;margin-bottom:8px}.auth-logo span{color:#f59e0b}
-.auth-sub{color:#94a3b8;font-size:14px;margin-bottom:32px}
-.auth-input{width:100%;padding:12px 16px;background:#0f1117;border:1px solid #374151;border-radius:8px;color:#e2e8f0;font-size:15px;outline:none;transition:border-color .2s}
-.auth-input:focus{border-color:#f59e0b}
-.auth-btn{width:100%;padding:13px;background:#f59e0b;border:none;border-radius:8px;color:#0f1117;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:opacity .2s}
-.auth-btn:hover{opacity:.9}.auth-btn:disabled{opacity:.5;cursor:not-allowed}
-.auth-err{color:#f87171;font-size:13px;margin-top:12px;min-height:20px}
-.auth-info{color:#94a3b8;font-size:13px;margin-top:20px}
-.otp-back{background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;margin-top:12px;text-decoration:underline}
+:root{--storm:#0A181C;--monday:#79E2FF;--hot:#FF6B6B;--gray-600:#6c757d;--white:#FFFFFF}
+.login-screen{position:fixed;inset:0;background:var(--storm);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000}
+.login-screen.hidden{display:none}
+.login-box{background:rgba(121,226,255,0.05);border:2px solid rgba(121,226,255,0.2);border-radius:12px;padding:40px;text-align:center}
+.login-logo{width:60px;height:60px;background:var(--monday);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--storm);font-size:28px;margin:0 auto 20px}
+.login-title{font-size:18px;font-weight:700;color:var(--white);margin-bottom:6px}
+.login-sub{color:var(--gray-600);font-size:13px;margin-bottom:24px}
+.login-input{background:rgba(121,226,255,0.1);border:1px solid rgba(121,226,255,0.2);border-radius:6px;padding:12px 16px;color:var(--white);font-size:14px;width:250px;text-align:center;margin-bottom:16px;outline:none;transition:border-color .2s}
+.login-input:focus{border-color:var(--monday)}
+.login-btn{background:var(--monday);border:none;color:var(--storm);padding:12px 32px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer}
+.login-btn:hover{opacity:.9}
+.login-error{color:var(--hot);font-size:11px;margin-top:12px;display:none}
 
 /* HEADER */
 #dashboard{display:none}
@@ -107,23 +108,15 @@ tr:hover td{background:#1a2030}
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-screen">
-  <div class="auth-card">
-    <div class="auth-logo">Platinum<span>list</span></div>
-    <div class="auth-sub">State of the Market — Internal Dashboard</div>
-    <div id="step-email">
-      <input class="auth-input" type="email" id="email-input" placeholder="your@platinumlist.net" autocomplete="email">
-      <button class="auth-btn" id="send-otp-btn" onclick="sendOTP()">Send OTP Code</button>
-      <div class="auth-err" id="auth-err"></div>
-      <div class="auth-info">Only @platinumlist.net emails are allowed</div>
-    </div>
-    <div id="step-otp" style="display:none">
-      <div style="color:#94a3b8;font-size:14px;margin-bottom:20px">Check your email for a 6-digit code</div>
-      <input class="auth-input" type="text" id="otp-input" placeholder="000000" maxlength="6" autocomplete="one-time-code" inputmode="numeric" style="letter-spacing:.3em;font-size:22px;text-align:center">
-      <button class="auth-btn" id="verify-otp-btn" onclick="verifyOTP()">Verify & Enter</button>
-      <div class="auth-err" id="otp-err"></div>
-      <button class="otp-back" onclick="backToEmail()">← Use a different email</button>
-    </div>
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">P</div>
+    <div class="login-title">State of the Market</div>
+    <div class="login-sub">Enter password to continue</div>
+    <input type="password" class="login-input" id="password-input" placeholder="Password" onkeypress="if(event.key==='Enter')checkPassword()">
+    <br>
+    <button class="login-btn" onclick="checkPassword()">Login</button>
+    <div class="login-error" id="login-error">Wrong password!</div>
   </div>
 </div>
 
@@ -194,41 +187,21 @@ let currentDate = '';
 let activeTab = 'market';
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
-async function sendOTP() {
-  const email = document.getElementById('email-input').value.trim().toLowerCase();
-  const err = document.getElementById('auth-err');
-  err.textContent = '';
-  if (!email) { err.textContent = 'Please enter your email.'; return; }
-  if (!email.endsWith('@platinumlist.net')) { err.textContent = 'Only @platinumlist.net emails are allowed.'; return; }
-  const btn = document.getElementById('send-otp-btn');
-  btn.disabled = true; btn.textContent = 'Sending…';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  btn.disabled = false; btn.textContent = 'Send OTP Code';
-  if (error) { err.textContent = error.message.includes('Signups not allowed') ? 'This email is not registered. Contact admin.' : error.message; return; }
-  userEmail = email;
-  document.getElementById('step-email').style.display = 'none';
-  document.getElementById('step-otp').style.display = '';
-  setTimeout(() => document.getElementById('otp-input').focus(), 50);
+const PASSWORD = 'platinumlist2024';
+function checkPassword() {
+  const input = document.getElementById('password-input').value;
+  if (input === PASSWORD) {
+    sessionStorage.setItem('auth','1');
+    enterDashboard();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('password-input').value = '';
+  }
 }
-async function verifyOTP() {
-  const token = document.getElementById('otp-input').value.trim();
-  const err = document.getElementById('otp-err');
-  err.textContent = '';
-  if (token.length !== 6) { err.textContent = 'Enter the 6-digit code.'; return; }
-  const btn = document.getElementById('verify-otp-btn');
-  btn.disabled = true; btn.textContent = 'Verifying…';
-  const { error } = await sb.auth.verifyOtp({ email: userEmail, token, type: 'email' });
-  btn.disabled = false; btn.textContent = 'Verify & Enter';
-  if (error) { err.textContent = error.message; return; }
-  enterDashboard(userEmail);
-}
-function backToEmail() { document.getElementById('step-otp').style.display='none'; document.getElementById('step-email').style.display=''; }
-async function signOut() { await sb.auth.signOut(); location.reload(); }
-async function checkSession() { const { data:{session} } = await sb.auth.getSession(); if (session) enterDashboard(session.user.email); }
-function enterDashboard(email) {
-  document.getElementById('auth-screen').style.display = 'none';
+function signOut() { sessionStorage.removeItem('auth'); location.reload(); }
+function enterDashboard() {
+  document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard').style.display = '';
-  document.getElementById('user-email-display').textContent = email;
   loadData();
 }
 
@@ -571,9 +544,7 @@ function renderInsights() {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('otp-input').addEventListener('input', function(){if(this.value.length===6)verifyOTP();});
-  document.getElementById('email-input').addEventListener('keydown', e=>{if(e.key==='Enter')sendOTP();});
-  checkSession();
+  if (sessionStorage.getItem('auth') === '1') enterDashboard();
 });
 </script>
 </body>
