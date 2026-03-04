@@ -466,7 +466,6 @@ function renderCharts() {
 
 function renderTable() {
   let rows='', grandRev=0, grandTxn=0, grandAttr=0, grandEvt=0;
-  const hasYoY = hasAny(yoyData);
   for (const cur of MARKET_ORDER) {
     if (!currData[cur] && !prevWeekData[cur]) continue;
     const attrR = currData[cur]?.Attractions?.rev||0;
@@ -485,25 +484,25 @@ function renderTable() {
       <td><strong>${fmtRev(total,cur)}</strong></td>
       <td>${txn.toLocaleString()}</td>
       <td>${fmtPct(pct(total,wowTotal))}</td>
-      ${hasYoY ? `<td>${fmtPct(pct(total,yoyTotal))}</td>` : ''}
+      <td>${fmtPct(pct(total,yoyTotal))}</td>
     </tr>`;
   }
   const gap = grandRev>0?(grandAttr/grandRev*100).toFixed(0):0;
   document.getElementById('table-section').innerHTML = `<div class="section">
     <div class="section-header"><div>
       <div class="section-title">Market Breakdown</div>
-      <div class="section-sub">Revenue split by market · Attractions vs Events · vs prev week${hasYoY ? ' &amp; YoY' : ''}</div>
+      <div class="section-sub">Revenue split by market · Attractions vs Events · vs prev week &amp; YoY</div>
     </div></div>
     <table><thead><tr>
       <th>Market</th><th><span class="badge-attr">Attractions</span></th><th><span class="badge-evt">Events</span></th>
-      <th>Total (local)</th><th>Transactions</th><th>vs WoW</th>${hasYoY ? '<th>vs YoY</th>' : ''}
+      <th>Total (local)</th><th>Transactions</th><th>vs WoW</th><th>vs YoY</th>
     </tr></thead><tbody>
     ${rows}
     <tr class="total-row">
       <td>TOTAL</td>
       <td>${gap}% attr</td><td>${100-gap}% evt</td>
       <td>${grandRev>=1e6?(grandRev/1e6).toFixed(2)+'M':grandRev>=1e3?(grandRev/1e3).toFixed(1)+'K':grandRev.toFixed(0)} (mixed)</td>
-      <td>${grandTxn.toLocaleString()}</td><td${hasYoY ? ' colspan="2"' : ''}></td>
+      <td>${grandTxn.toLocaleString()}</td><td colspan="2"></td>
     </tr></tbody></table>
   </div>`;
 }
