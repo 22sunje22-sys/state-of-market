@@ -223,7 +223,7 @@ function checkPassword() {
 function signOut() { sessionStorage.removeItem('auth'); location.reload(); }
 function enterDashboard() {
   document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('dashboard').style.display = '';
+  document.getElementById('dashboard').style.display = 'block';
   loadData();
 }
 
