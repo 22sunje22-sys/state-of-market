@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   let body = req.body;
@@ -9,4 +9,4 @@ export default async function handler(req, res) {
   const { password } = body || {};
   const ok = typeof password === 'string' && password === process.env.DASHBOARD_PASSWORD;
   res.status(200).json({ ok });
-}
+};

@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const { date } = req.query;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'valid date required (YYYY-MM-DD)' });
@@ -19,4 +19,4 @@ export default async function handler(req, res) {
 
   const data = await response.json();
   res.status(200).json(data);
-}
+};
