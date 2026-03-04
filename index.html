@@ -514,19 +514,38 @@ function renderInsights() {
     return;
   }
 
-  const totalAED = getTotalAED(currData), wowAED = getTotalAED(prevWeekData), yoyAED = getTotalAED(yoyData);
-  const attrAED = getCatAED(currData,'Attractions'), evtAED = getCatAED(currData,'Events');
-  const wowAttrAED = getCatAED(prevWeekData,'Attractions'), wowEvtAED = getCatAED(prevWeekData,'Events');
-  const yoyAttrAED = getCatAED(yoyData,'Attractions'), yoyEvtAED = getCatAED(yoyData,'Events');
-  const attrShare = totalAED>0?(attrAED/totalAED*100).toFixed(0):0;
-  const evtShare = totalAED>0?(evtAED/totalAED*100).toFixed(0):0;
+  // ── Revenue totals ──────────────────────────────────────────────────────────
+  const totalAED    = getTotalAED(currData),    wowAED    = getTotalAED(prevWeekData),    yoyAED    = getTotalAED(yoyData);
+  const attrAED     = getCatAED(currData,'Attractions'),  evtAED     = getCatAED(currData,'Events');
+  const wowAttrAED  = getCatAED(prevWeekData,'Attractions'), wowEvtAED  = getCatAED(prevWeekData,'Events');
+  const yoyAttrAED  = getCatAED(yoyData,'Attractions'),   yoyEvtAED  = getCatAED(yoyData,'Events');
+  const attrShare   = totalAED>0?(attrAED/totalAED*100).toFixed(0):0;
+  const evtShare    = totalAED>0?(evtAED/totalAED*100).toFixed(0):0;
 
+  // ── % changes ──────────────────────────────────────────────────────────────
   const totalWoW = pct(totalAED, wowAED);
   const totalYoY = pct(totalAED, yoyAED);
-  const attrWoW = pct(attrAED, wowAttrAED);
-  const evtWoW = pct(evtAED, wowEvtAED);
+  const attrWoW  = pct(attrAED,  wowAttrAED);
+  const attrYoY  = pct(attrAED,  yoyAttrAED);
+  const evtWoW   = pct(evtAED,   wowEvtAED);
+  const evtYoY   = pct(evtAED,   yoyEvtAED);
 
-  // Market-level analysis
+  // ── UAE breakdown ──────────────────────────────────────────────────────────
+  const uaeAttr     = getAED(currData,   'AED','Attractions');
+  const uaeEvt      = getAED(currData,   'AED','Events');
+  const uaeTotal    = uaeAttr + uaeEvt;
+  const wowUaeAttr  = getAED(prevWeekData,'AED','Attractions');
+  const wowUaeEvt   = getAED(prevWeekData,'AED','Events');
+  const yoyUaeAttr  = getAED(yoyData,    'AED','Attractions');
+  const yoyUaeEvt   = getAED(yoyData,    'AED','Events');
+  const uaeWoW      = pct(uaeTotal, wowUaeAttr+wowUaeEvt);
+  const uaeYoY      = pct(uaeTotal, yoyUaeAttr+yoyUaeEvt);
+  const uaeAttrWoW  = pct(uaeAttr,  wowUaeAttr);
+  const uaeAttrYoY  = pct(uaeAttr,  yoyUaeAttr);
+  const uaeEvtWoW   = pct(uaeEvt,   wowUaeEvt);
+  const uaeEvtYoY   = pct(uaeEvt,   yoyUaeEvt);
+
+  // ── Market-level movers ────────────────────────────────────────────────────
   const marketWinners = [], marketLosers = [];
   for (const cur of MARKET_ORDER) {
     if (!currData[cur]) continue;
@@ -534,28 +553,29 @@ function renderInsights() {
     const wow = getMarketAED(prevWeekData, cur);
     const p = pct(rev, wow);
     if (p !== null) {
-      if (p >= 10) marketWinners.push({cur, p, rev});
+      if (p >= 10)  marketWinners.push({cur, p, rev});
       else if (p <= -10) marketLosers.push({cur, p, rev});
     }
   }
   marketWinners.sort((a,b)=>b.p-a.p);
   marketLosers.sort((a,b)=>a.p-b.p);
 
-  // Top performing market by revenue (today)
+  // ── Top market ─────────────────────────────────────────────────────────────
   let topMarket = null, topRev = 0;
   for (const cur of MARKET_ORDER) {
     const r = getMarketAED(currData, cur);
     if (r > topRev) { topRev = r; topMarket = cur; }
   }
 
-  // UAE attr vs evt breakdown
-  const uaeAttr = getAED(currData,'AED','Attractions');
-  const uaeEvt = getAED(currData,'AED','Events');
-  const uaeTotal = uaeAttr + uaeEvt;
-  const wowUaeAttr = getAED(prevWeekData,'AED','Attractions');
-  const wowUaeEvt = getAED(prevWeekData,'AED','Events');
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function tagDelta(p) {
+    if (p===null) return '<span class="tag-flat">—</span>';
+    if (p>0)  return `<span class="tag-up">+${p.toFixed(1)}%</span>`;
+    if (p<0)  return `<span class="tag-down">${p.toFixed(1)}%</span>`;
+    return '<span class="tag-flat">flat</span>';
+  }
 
-  // Generate headline
+  // ── HEADLINE SUMMARY ───────────────────────────────────────────────────────
   function headlineSentence() {
     if (totalWoW === null) return `Total revenue stands at <strong>${fmtAED(totalAED)}</strong> (no prior week data for comparison).`;
     const dir = totalWoW > 0 ? 'up' : totalWoW < 0 ? 'down' : 'flat';
@@ -563,90 +583,107 @@ function renderInsights() {
     if (yoyAED > 0) { const ydir = totalYoY > 0 ? 'up' : 'down'; sent += ` and <span class="tag-${ydir==='up'?'up':'down'}">${Math.abs(totalYoY).toFixed(1)}% YoY</span>`; }
     return sent + '.';
   }
-
-  function tagDelta(p) {
-    if (p===null) return '<span class="tag-flat">no data</span>';
-    if (p>0) return `<span class="tag-up">+${p.toFixed(1)}%</span>`;
-    if (p<0) return `<span class="tag-down">${p.toFixed(1)}%</span>`;
-    return '<span class="tag-flat">flat</span>';
-  }
-
-  // HEADLINE SUMMARY
   const summaryHTML = `<div class="insight-summary">
     <div class="insight-summary-title">📊 Daily Market Summary — ${fmtDateShort(currentDate)}</div>
     <div class="insight-summary-text">
       ${headlineSentence()}
       ${topMarket ? ` <strong>${MARKET_SHORT[topMarket]}</strong> is the top-revenue market at <strong>${fmtAED(getMarketAED(currData,topMarket))}</strong>.` : ''}
-      Attractions account for <strong>${attrShare}%</strong> of revenue (${fmtAED(attrAED)}),
-      Events for <strong>${evtShare}%</strong> (${fmtAED(evtAED)}).
-      ${attrWoW!==null ? `Attractions are <span class="tag-${attrWoW>=0?'up':'down'}">${attrWoW>=0?'+':''}${attrWoW.toFixed(1)}%</span> and Events <span class="tag-${evtWoW>=0?'up':'down'}">${evtWoW>=0?'+':''}${evtWoW.toFixed(1)}%</span> vs prev week.` : ''}
+      Attractions account for <strong>${attrShare}%</strong> of revenue (${fmtAED(attrAED)}), Events for <strong>${evtShare}%</strong> (${fmtAED(evtAED)}).
     </div>
   </div>`;
 
-  // MARKET MOVERS
-  let moversHTML = '';
-  if (marketWinners.length || marketLosers.length) {
-    let items = '';
-    for (const {cur,p} of marketWinners.slice(0,4)) {
-      const attr = getAED(currData,cur,'Attractions'), evt = getAED(currData,cur,'Events');
-      const driver = attr>evt ? 'Attractions-led' : 'Events-led';
-      items += `<div class="insight-item"><span class="insight-icon">🟢</span><div class="insight-text">
-        <strong>${CURRENCY_MARKET[cur]}</strong> — <span class="tag-up">+${p.toFixed(1)}%</span> vs prev week · ${driver} · Total <strong>${fmtAED(getMarketAED(currData,cur))}</strong>
-      </div></div>`;
-    }
-    for (const {cur,p} of marketLosers.slice(0,4)) {
-      items += `<div class="insight-item"><span class="insight-icon">🔴</span><div class="insight-text">
-        <strong>${CURRENCY_MARKET[cur]}</strong> — <span class="tag-down">${p.toFixed(1)}%</span> vs prev week · Total <strong>${fmtAED(getMarketAED(currData,cur))}</strong>
-      </div></div>`;
-    }
-    moversHTML = `<div class="insight-card">
-      <div class="insight-card-title">📈 Market Movers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;font-size:11px">vs prev week</span></div>
-      ${items || '<div class="insight-item"><span class="insight-icon">⚪</span><div class="insight-text">All markets within ±10% of prev week.</div></div>'}
-    </div>`;
-  }
+  // ── WoW & YoY PERFORMANCE TABLE ────────────────────────────────────────────
+  const compRows = [
+    { label:'Total',       icon:'💰', rev:totalAED, wow:totalWoW, yoy:totalYoY },
+    { label:'Attractions', icon:'🎡', rev:attrAED,  wow:attrWoW,  yoy:attrYoY  },
+    { label:'Events',      icon:'🎵', rev:evtAED,   wow:evtWoW,   yoy:evtYoY   },
+    { label:'UAE',         icon:'🇦🇪', rev:uaeTotal, wow:uaeWoW,   yoy:uaeYoY   },
+  ];
+  const compRowsHTML = compRows.map(r=>`<tr style="border-bottom:1px solid #0f172a">
+      <td style="padding:8px 12px;color:#e2e8f0;font-size:13px">${r.icon} ${r.label}</td>
+      <td style="padding:8px 12px;text-align:right;font-size:13px;color:#94a3b8;font-variant-numeric:tabular-nums">${fmtAED(r.rev)}</td>
+      <td style="padding:8px 12px;text-align:center">${tagDelta(r.wow)}</td>
+      <td style="padding:8px 12px;text-align:center">${tagDelta(r.yoy)}</td>
+    </tr>`).join('');
+  const yoyNotice = !hasAny(yoyData)
+    ? `<div style="font-size:11px;color:#64748b;margin-top:8px;padding:6px 12px;background:#0f172a;border-radius:6px">⚠️ YoY shows — because historical data for ${currentDate.slice(0,4)-1} is not yet loaded into the database</div>`
+    : '';
+  const compHTML = `<div class="insight-card" style="grid-column:1/-1">
+    <div class="insight-card-title">📅 WoW &amp; YoY Performance</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #1e293b">
+        <th style="padding:6px 12px;text-align:left;font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Metric</th>
+        <th style="padding:6px 12px;text-align:right;font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Today (AED)</th>
+        <th style="padding:6px 12px;text-align:center;font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.5px">vs Prev Week</th>
+        <th style="padding:6px 12px;text-align:center;font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.5px">vs Last Year</th>
+      </tr></thead>
+      <tbody>${compRowsHTML}</tbody>
+    </table>
+    ${yoyNotice}
+  </div>`;
 
-  // UAE DEEP-DIVE
-  const uaeWoW = pct(uaeTotal, wowUaeAttr+wowUaeEvt);
-  const uaeAttrWoW = pct(uaeAttr, wowUaeAttr);
-  const uaeEvtWoW = pct(uaeEvt, wowUaeEvt);
+  // ── MARKET MOVERS ──────────────────────────────────────────────────────────
+  let moversItems = '';
+  for (const {cur,p} of marketWinners.slice(0,4)) {
+    const rev = getMarketAED(currData, cur);
+    const yp  = pct(rev, getMarketAED(yoyData, cur));
+    const attr = getAED(currData,cur,'Attractions'), evt = getAED(currData,cur,'Events');
+    const driver = attr>evt ? 'Attractions-led' : 'Events-led';
+    moversItems += `<div class="insight-item"><span class="insight-icon">🟢</span><div class="insight-text">
+      <strong>${CURRENCY_MARKET[cur]}</strong> — ${tagDelta(p)} WoW · ${tagDelta(yp)} YoY · ${driver} · <strong>${fmtAED(rev)}</strong>
+    </div></div>`;
+  }
+  for (const {cur,p} of marketLosers.slice(0,4)) {
+    const rev = getMarketAED(currData, cur);
+    const yp  = pct(rev, getMarketAED(yoyData, cur));
+    moversItems += `<div class="insight-item"><span class="insight-icon">🔴</span><div class="insight-text">
+      <strong>${CURRENCY_MARKET[cur]}</strong> — ${tagDelta(p)} WoW · ${tagDelta(yp)} YoY · <strong>${fmtAED(rev)}</strong>
+    </div></div>`;
+  }
+  const moversHTML = `<div class="insight-card">
+    <div class="insight-card-title">📈 Market Movers</div>
+    ${moversItems || '<div class="insight-item"><span class="insight-icon">⚪</span><div class="insight-text">All markets within ±10% of prev week.</div></div>'}
+  </div>`;
+
+  // ── UAE DEEP-DIVE ──────────────────────────────────────────────────────────
   let uaeItems = `
-    <div class="insight-item"><span class="insight-icon">💰</span><div class="insight-text">UAE total: <strong>${fmtAED(uaeTotal)}</strong> · ${tagDelta(uaeWoW)} vs prev week</div></div>
-    <div class="insight-item"><span class="insight-icon">🎡</span><div class="insight-text">Attractions: <strong>${fmtAED(uaeAttr)}</strong> (${uaeTotal>0?(uaeAttr/uaeTotal*100).toFixed(0):0}%) · ${tagDelta(uaeAttrWoW)} vs prev week</div></div>
-    <div class="insight-item"><span class="insight-icon">🎵</span><div class="insight-text">Events: <strong>${fmtAED(uaeEvt)}</strong> (${uaeTotal>0?(uaeEvt/uaeTotal*100).toFixed(0):0}%) · ${tagDelta(uaeEvtWoW)} vs prev week</div></div>`;
+    <div class="insight-item"><span class="insight-icon">💰</span><div class="insight-text">UAE total: <strong>${fmtAED(uaeTotal)}</strong> · ${tagDelta(uaeWoW)} WoW · ${tagDelta(uaeYoY)} YoY</div></div>
+    <div class="insight-item"><span class="insight-icon">🎡</span><div class="insight-text">Attractions: <strong>${fmtAED(uaeAttr)}</strong> (${uaeTotal>0?(uaeAttr/uaeTotal*100).toFixed(0):0}%) · ${tagDelta(uaeAttrWoW)} WoW · ${tagDelta(uaeAttrYoY)} YoY</div></div>
+    <div class="insight-item"><span class="insight-icon">🎵</span><div class="insight-text">Events: <strong>${fmtAED(uaeEvt)}</strong> (${uaeTotal>0?(uaeEvt/uaeTotal*100).toFixed(0):0}%) · ${tagDelta(uaeEvtWoW)} WoW · ${tagDelta(uaeEvtYoY)} YoY</div></div>`;
   if (uaeWoW!==null && Math.abs(uaeWoW)>15) {
-    uaeItems += `<div class="insight-item"><span class="insight-icon">⚡</span><div class="insight-text">UAE swing of <strong>${Math.abs(uaeWoW).toFixed(1)}%</strong> — ${Math.abs(uaeWoW)>30?'significant move, check event calendar':'worth monitoring'}</div></div>`;
+    uaeItems += `<div class="insight-item"><span class="insight-icon">⚡</span><div class="insight-text">UAE WoW swing of <strong>${Math.abs(uaeWoW).toFixed(1)}%</strong> — ${Math.abs(uaeWoW)>30?'significant move, check event calendar':'worth monitoring'}</div></div>`;
   }
   const uaeHTML = `<div class="insight-card">
     <div class="insight-card-title">🇦🇪 UAE Deep-Dive</div>
     ${uaeItems}
   </div>`;
 
-  // SPLIT ANALYSIS
+  // ── ATTRACTIONS vs EVENTS ──────────────────────────────────────────────────
   let splitItems = `
-    <div class="insight-item"><span class="insight-icon">🎡</span><div class="insight-text">Attractions: <strong>${fmtAED(attrAED)}</strong> · ${attrShare}% of revenue · ${tagDelta(attrWoW)} WoW${yoyAttrAED>0?' · '+tagDelta(pct(attrAED,yoyAttrAED))+' YoY':''}</div></div>
-    <div class="insight-item"><span class="insight-icon">🎵</span><div class="insight-text">Events: <strong>${fmtAED(evtAED)}</strong> · ${evtShare}% of revenue · ${tagDelta(evtWoW)} WoW${yoyEvtAED>0?' · '+tagDelta(pct(evtAED,yoyEvtAED))+' YoY':''}</div></div>`;
-  if (attrAED > evtAED*1.5) splitItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">Attractions are driving the majority — revenue heavily dependent on attraction bookings.</div></div>`;
-  else if (evtAED > attrAED*1.5) splitItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">Events are driving the majority — revenue heavily dependent on upcoming events.</div></div>`;
-  else splitItems += `<div class="insight-item"><span class="insight-icon">✅</span><div class="insight-text">Healthy balance between Attractions and Events revenue.</div></div>`;
+    <div class="insight-item"><span class="insight-icon">🎡</span><div class="insight-text">Attractions: <strong>${fmtAED(attrAED)}</strong> · ${attrShare}% · ${tagDelta(attrWoW)} WoW · ${tagDelta(attrYoY)} YoY</div></div>
+    <div class="insight-item"><span class="insight-icon">🎵</span><div class="insight-text">Events: <strong>${fmtAED(evtAED)}</strong> · ${evtShare}% · ${tagDelta(evtWoW)} WoW · ${tagDelta(evtYoY)} YoY</div></div>`;
+  if (attrAED > evtAED*1.5)       splitItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">Attractions are driving the majority — revenue heavily dependent on attraction bookings.</div></div>`;
+  else if (evtAED > attrAED*1.5)  splitItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">Events are driving the majority — revenue heavily dependent on upcoming events.</div></div>`;
+  else                             splitItems += `<div class="insight-item"><span class="insight-icon">✅</span><div class="insight-text">Healthy balance between Attractions and Events revenue.</div></div>`;
   const splitHTML = `<div class="insight-card">
     <div class="insight-card-title">⚡ Attractions vs Events</div>
     ${splitItems}
   </div>`;
 
-  // GEO SPREAD
+  // ── GEOGRAPHIC SPREAD ──────────────────────────────────────────────────────
   const activeMkts = MARKET_ORDER.filter(c => getMarketAED(currData,c) > 0).length;
   const topShare = topMarket ? (getMarketAED(currData,topMarket)/totalAED*100).toFixed(0) : 0;
   let geoItems = `
     <div class="insight-item"><span class="insight-icon">🌍</span><div class="insight-text"><strong>${activeMkts}</strong> of ${MARKET_ORDER.length} markets active today</div></div>
     ${topMarket ? `<div class="insight-item"><span class="insight-icon">🏆</span><div class="insight-text"><strong>${MARKET_SHORT[topMarket]}</strong> is the largest market at ${topShare}% of total revenue</div></div>` : ''}`;
-  if (topShare > 70) geoItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">High concentration: ${MARKET_SHORT[topMarket]} accounts for over 70% — revenue sensitive to UAE demand fluctuations.</div></div>`;
+  if (topShare > 70)      geoItems += `<div class="insight-item"><span class="insight-icon">⚠️</span><div class="insight-text">High concentration: ${MARKET_SHORT[topMarket]} accounts for over 70% — revenue sensitive to UAE demand fluctuations.</div></div>`;
   else if (topShare < 40) geoItems += `<div class="insight-item"><span class="insight-icon">✅</span><div class="insight-text">Good geographic diversification — no single market exceeds 40%.</div></div>`;
   const geoHTML = `<div class="insight-card">
     <div class="insight-card-title">🌍 Geographic Spread</div>
     ${geoItems}
   </div>`;
 
-  document.getElementById('insights-content').innerHTML = summaryHTML + `<div class="insights-grid">${moversHTML}${uaeHTML}${splitHTML}${geoHTML}</div>`;
+  document.getElementById('insights-content').innerHTML = summaryHTML + `<div class="insights-grid">${compHTML}${moversHTML}${uaeHTML}${splitHTML}${geoHTML}</div>`;
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
