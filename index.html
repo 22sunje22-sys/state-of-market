@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>State of the Market — Platinumlist</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -193,13 +192,6 @@ tr:hover td{background:#1a2030}
 </div>
 
 <script>
-const SUPABASE_URL = 'https://kwftlkfvtglnugxsyjci.supabase.co';
-// TODO: Run in Supabase SQL editor to enable anon access permanently:
-// CREATE POLICY "anon_select" ON ga4_market_daily FOR SELECT TO anon USING (true);
-// Then revert to anon key. Using service_role temporarily (dashboard is Vercel-protected).
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3ZnRsa2Z2dGdsbnVneHN5amNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY0MDE4NSwiZXhwIjoyMDYzMjE2MTg1fQ.YIAjhOjctWouBNL8OI_Q3efawdVf7ikl-LvnFQGYHT4';
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const CURRENCY_MARKET = {AED:'UAE 🇦🇪',SAR:'Saudi Arabia 🇸🇦',QAR:'Qatar 🇶🇦',BHD:'Bahrain 🇧🇭',GBP:'United Kingdom 🇬🇧',EUR:'Europe 🇪🇺',OMR:'Oman 🇴🇲',USD:'International 🌐',TRY:'Turkey 🇹🇷'};
 const MARKET_SHORT = {AED:'UAE',SAR:'Saudi',QAR:'Qatar',BHD:'Bahrain',GBP:'UK',EUR:'Europe',OMR:'Oman',USD:'Intl',TRY:'Turkey'};
@@ -213,15 +205,28 @@ let currentDate = '', customDate = null;
 let activeTab = 'market';
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
-const PASSWORD = 'platinumlist2024';
-function checkPassword() {
+async function checkPassword() {
   const input = document.getElementById('password-input').value;
-  if (input === PASSWORD) {
-    sessionStorage.setItem('auth','1');
-    enterDashboard();
-  } else {
+  const btn = document.querySelector('.login-btn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ password: input })
+    });
+    const { ok } = await res.json();
+    if (ok) {
+      sessionStorage.setItem('auth', '1');
+      enterDashboard();
+    } else {
+      document.getElementById('login-error').style.display = 'block';
+      document.getElementById('password-input').value = '';
+    }
+  } catch(e) {
     document.getElementById('login-error').style.display = 'block';
-    document.getElementById('password-input').value = '';
+  } finally {
+    btn.disabled = false;
   }
 }
 function signOut() { sessionStorage.removeItem('auth'); location.reload(); }
@@ -295,16 +300,19 @@ function showLoading(show) {
 }
 
 async function fetchRows(date) {
-  const { data, error } = await sb.from('ga4_market_daily').select('currency,category,revenue,transactions').eq('report_date', date);
-  if (error || !data) return {};
-  const agg = {};
-  for (const r of data) {
-    if (!agg[r.currency]) agg[r.currency] = {};
-    if (!agg[r.currency][r.category]) agg[r.currency][r.category] = {rev:0, txn:0};
-    agg[r.currency][r.category].rev += parseFloat(r.revenue)||0;
-    agg[r.currency][r.category].txn += parseInt(r.transactions)||0;
-  }
-  return agg;
+  try {
+    const res = await fetch(`/api/data?date=${date}`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    const agg = {};
+    for (const r of data) {
+      if (!agg[r.currency]) agg[r.currency] = {};
+      if (!agg[r.currency][r.category]) agg[r.currency][r.category] = {rev:0, txn:0};
+      agg[r.currency][r.category].rev += parseFloat(r.revenue)||0;
+      agg[r.currency][r.category].txn += parseInt(r.transactions)||0;
+    }
+    return agg;
+  } catch(e) { return {}; }
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
