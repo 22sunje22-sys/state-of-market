@@ -164,8 +164,8 @@ tr:hover td{background:#1a2030}
   <div class="main">
     <!-- DATE PICKER (shared) -->
     <div class="date-tabs">
-      <button class="date-tab active" onclick="selectDate(this,0)">Today</button>
-      <button class="date-tab" onclick="selectDate(this,1)">Yesterday</button>
+      <button class="date-tab" onclick="selectDate(this,0)">Today</button>
+      <button class="date-tab active" onclick="selectDate(this,1)">Yesterday</button>
       <button class="date-tab" onclick="selectDate(this,7)">-7 days</button>
       <button class="date-tab" onclick="selectDate(this,30)">-30 days</button>
       <span class="date-label" id="date-label"></span>
@@ -203,7 +203,7 @@ const MARKET_ORDER = ['AED','SAR','QAR','BHD','GBP','EUR','OMR','USD','TRY'];
 const SYM = {AED:'AED',SAR:'SAR',QAR:'QAR',BHD:'BHD',GBP:'£',EUR:'€',OMR:'OMR',USD:'$',TRY:'₺'};
 const TO_AED = {AED:1,SAR:0.98,QAR:1.03,BHD:9.97,GBP:4.77,EUR:3.9,OMR:9.82,USD:3.67,TRY:0.1};
 
-let currentOffset = 0, userEmail = '', charts = {};
+let currentOffset = 1, userEmail = '', charts = {};
 let currData = {}, prevData = {}, yoyData = {}, prevWeekData = {};
 let currentDate = '';
 let activeTab = 'market';
