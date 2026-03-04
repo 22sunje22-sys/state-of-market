@@ -103,6 +103,27 @@ tr:hover td{background:#1a2030}
 .spinner{display:inline-block;width:28px;height:28px;border:3px solid #2d3748;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .last-updated{color:#64748b;font-size:12px;text-align:right;margin-bottom:14px}
+/* ── SUMMARY BANNER ─────────────────────────────────────── */
+.summary-banner{background:linear-gradient(135deg,#0d2028 0%,#0f2530 100%);border:1px solid rgba(121,226,255,.15);border-radius:14px;padding:20px 24px 18px;margin-bottom:20px}
+.sb-header{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+.sb-title{font-size:14px;font-weight:700;color:#e2e8f0;letter-spacing:.04em;text-transform:uppercase}
+.sb-subtitle{font-size:11px;color:#64748b}
+.sb-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:4px}
+.sb-item{flex:1;min-width:160px;padding:0 20px}
+.sb-item:first-child{padding-left:0}
+.sb-item:last-child{padding-right:0}
+.sb-divider{width:1px;background:rgba(121,226,255,.1);align-self:stretch;flex-shrink:0}
+.sb-item-label{font-size:11px;color:#79e2ff;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.sb-share{font-weight:400;color:#64748b;font-size:10px;letter-spacing:0;text-transform:none}
+.sb-item-value{font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:6px;letter-spacing:-.01em}
+.sb-item-comps{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.sb-comp-label{font-size:10px;color:#64748b}
+.sb-comp-sep{color:#334155;font-size:12px}
+.sb-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px}
+.sb-up{background:rgba(16,185,129,.15);color:#10b981}
+.sb-down{background:rgba(239,68,68,.15);color:#ef4444}
+.sb-flat{background:rgba(100,116,139,.15);color:#94a3b8}
+@media(max-width:640px){.sb-row{gap:14px 0}.sb-divider{display:none}.sb-item{padding:0;min-width:140px}}
 </style>
 </head>
 <body>
@@ -154,6 +175,7 @@ tr:hover td{background:#1a2030}
 
     <!-- MARKET TAB -->
     <div class="tab-pane active" id="tab-market">
+      <div id="summary-banner"></div>
       <div id="kpi-row"></div>
       <div id="chart-section"></div>
       <div id="table-section"></div>
@@ -182,7 +204,7 @@ const SYM = {AED:'AED',SAR:'SAR',QAR:'QAR',BHD:'BHD',GBP:'£',EUR:'€',OMR:'OMR
 const TO_AED = {AED:1,SAR:0.98,QAR:1.03,BHD:9.97,GBP:4.77,EUR:3.9,OMR:9.82,USD:3.67,TRY:0.1};
 
 let currentOffset = 0, userEmail = '', charts = {};
-let currData = {}, prevData = {}, yoyData = {};
+let currData = {}, prevData = {}, yoyData = {}, prevWeekData = {};
 let currentDate = '';
 let activeTab = 'market';
 
@@ -237,11 +259,12 @@ async function loadData() {
   const date = getTargetDate(currentOffset);
   const prev = getTargetDate(currentOffset + 1);
   const yoy = getYoY(date);
+  const prevWeek = getTargetDate(currentOffset + 7);
   currentDate = date;
   document.getElementById('date-label').textContent = fmtDateLong(date);
   showLoading(true);
-  const [c, p, y] = await Promise.all([fetchRows(date), fetchRows(prev), fetchRows(yoy)]);
-  currData = c; prevData = p; yoyData = y;
+  const [c, p, y, w] = await Promise.all([fetchRows(date), fetchRows(prev), fetchRows(yoy), fetchRows(prevWeek)]);
+  currData = c; prevData = p; yoyData = y; prevWeekData = w;
   showLoading(false);
   const now = new Date().toLocaleString('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit'});
   document.getElementById('last-updated').textContent = `Last refreshed: ${now} Dubai time`;
@@ -296,14 +319,95 @@ function fmtRev(n, cur) {
 function fmtAED(n) { return fmtRev(n,'AED'); }
 function hasAny(d) { return Object.keys(d).length > 0; }
 
+// ─── SUMMARY BANNER ──────────────────────────────────────────────────────────
+function renderSummaryBanner() {
+  const el = document.getElementById('summary-banner');
+  if (!el) return;
+  if (!hasAny(currData)) { el.innerHTML = ''; return; }
+  const totalAED    = getTotalAED(currData);
+  const weekAED     = getTotalAED(prevWeekData);
+  const yoyAED      = getTotalAED(yoyData);
+  const attrAED     = getCatAED(currData, 'Attractions');
+  const evtAED      = getCatAED(currData, 'Events');
+  const weekAttrAED = getCatAED(prevWeekData, 'Attractions');
+  const weekEvtAED  = getCatAED(prevWeekData, 'Events');
+  const yoyAttrAED  = getCatAED(yoyData, 'Attractions');
+  const yoyEvtAED   = getCatAED(yoyData, 'Events');
+  const attrShare   = totalAED > 0 ? (attrAED / totalAED * 100).toFixed(0) : 0;
+  const evtShare    = totalAED > 0 ? (evtAED  / totalAED * 100).toFixed(0) : 0;
+  const topMarket = MARKET_ORDER.reduce((best, cur) => {
+    return getMarketAED(currData, cur) > getMarketAED(currData, best || '') ? cur : (best || cur);
+  }, null);
+  function pill(p) {
+    if (p === null) return `<span class="sb-pill sb-flat">no data</span>`;
+    const dir = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
+    const icon = p > 0 ? '▲' : p < 0 ? '▼' : '';
+    return `<span class="sb-pill sb-${dir}">${icon}${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
+  }
+  const wowRev  = pct(totalAED, weekAED);
+  const yoyRev  = pct(totalAED, yoyAED);
+  const wowAttr = pct(attrAED, weekAttrAED);
+  const yoyAttr = pct(attrAED, yoyAttrAED);
+  const wowEvt  = pct(evtAED, weekEvtAED);
+  const yoyEvt  = pct(evtAED, yoyEvtAED);
+  const weekDate = getTargetDate(currentOffset + 7);
+  const yoyDate  = getYoY(currentDate);
+  function dayFmt(s) { return new Date(s+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+  el.innerHTML = `<div class="summary-banner">
+    <div class="sb-header">
+      <span class="sb-title">📋 Summary — ${fmtDateShort(currentDate)}</span>
+      <span class="sb-subtitle">vs same day last week &amp; last year</span>
+    </div>
+    <div class="sb-row">
+      <div class="sb-item">
+        <div class="sb-item-label">Total Revenue</div>
+        <div class="sb-item-value">${fmtAED(totalAED)}</div>
+        <div class="sb-item-comps">
+          <span class="sb-comp-label">WoW (${dayFmt(weekDate)})</span>${pill(wowRev)}
+          <span class="sb-comp-sep">·</span>
+          <span class="sb-comp-label">YoY (${dayFmt(yoyDate)})</span>${pill(yoyRev)}
+        </div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-item">
+        <div class="sb-item-label">🎡 Attractions <span class="sb-share">${attrShare}%</span></div>
+        <div class="sb-item-value">${fmtAED(attrAED)}</div>
+        <div class="sb-item-comps">
+          <span class="sb-comp-label">WoW</span>${pill(wowAttr)}
+          <span class="sb-comp-sep">·</span>
+          <span class="sb-comp-label">YoY</span>${pill(yoyAttr)}
+        </div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-item">
+        <div class="sb-item-label">🎵 Events <span class="sb-share">${evtShare}%</span></div>
+        <div class="sb-item-value">${fmtAED(evtAED)}</div>
+        <div class="sb-item-comps">
+          <span class="sb-comp-label">WoW</span>${pill(wowEvt)}
+          <span class="sb-comp-sep">·</span>
+          <span class="sb-comp-label">YoY</span>${pill(yoyEvt)}
+        </div>
+      </div>
+      ${topMarket ? `<div class="sb-divider"></div>
+      <div class="sb-item">
+        <div class="sb-item-label">🏆 Top Market</div>
+        <div class="sb-item-value">${MARKET_SHORT[topMarket]}</div>
+        <div class="sb-item-comps"><span class="sb-comp-label">${(getMarketAED(currData,topMarket)/totalAED*100).toFixed(0)}% of total</span> · ${fmtAED(getMarketAED(currData,topMarket))}</div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
 // ─── RENDER MARKET ───────────────────────────────────────────────────────────
 function renderMarket() {
   if (!hasAny(currData)) {
+    document.getElementById('summary-banner').innerHTML = '';
     document.getElementById('kpi-row').innerHTML = `<div class="loading"><div style="font-size:36px;margin-bottom:12px">📭</div><div style="color:#94a3b8">No data for ${fmtDateShort(currentDate)}</div><div style="color:#64748b;font-size:12px;margin-top:6px">Data fetched daily at 7 AM Dubai time via GA4</div></div>`;
     document.getElementById('chart-section').innerHTML = '';
     document.getElementById('table-section').innerHTML = '';
     return;
   }
+  renderSummaryBanner();
   renderKPIs();
   renderCharts();
   renderTable();
