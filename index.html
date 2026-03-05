@@ -45,7 +45,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* MAIN */
 .main{padding:24px;max-width:1400px;margin:0 auto}
 .date-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
-.date-tab{padding:7px 14px;border-radius:8px;border:1px solid #2d3748;background:#1e2436;color:#94a3b8;font-size:13px;cursor:pointer;transition:all .2s}
+.date-tab{padding:7px 14px;border-radius:8px;border:1px solid #2d3748;background:#1e2436;color:#94a3b8;font-size:13px;cursor:pointer;transition:all .2s;font-family:inherit;line-height:normal;outline:none}
 .date-tab.active{background:#f59e0b;border-color:#f59e0b;color:#0f1117;font-weight:600}
 .date-tab:hover:not(.active){border-color:#f59e0b;color:#f59e0b}
 .date-picker-input{background:#1e2436;border:1px solid #2d3748;border-radius:8px;color:#94a3b8;font-size:13px;padding:6px 10px;cursor:pointer;outline:none;transition:all .2s;height:34px}
@@ -203,6 +203,7 @@ let currentOffset = 1, userEmail = '', charts = {};
 let currData = {}, yoyData = {}, prevWeekData = {};
 let currentDate = '', customDate = null;
 let activeTab = 'market';
+let yoyCat = 'Attractions';
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 function checkPassword() {
@@ -438,13 +439,51 @@ function renderKPIs() {
   </div>`;
 }
 
+function renderYoYChart() {
+  if (charts.yoy) { charts.yoy.destroy(); delete charts.yoy; }
+  const canvas = document.getElementById('ch-yoy');
+  if (!canvas) return;
+  const markets = MARKET_ORDER.filter(c => currData[c] || yoyData[c]);
+  const labels = markets.map(c => MARKET_SHORT[c]||c);
+  const color = yoyCat === 'Attractions' ? '#7c3aed' : '#0ea5e9';
+  const colorDim = yoyCat === 'Attractions' ? '#3b1f6e' : '#0a3d52';
+  const yoyDateStr = getYoY ? getYoY(currentDate) : '';
+  const opts = { responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+    scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1a2235'}},
+            y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v},grid:{color:'#1a2235'}}}};
+  charts.yoy = new Chart(canvas, {type:'bar',
+    data:{labels, datasets:[
+      {label:`${yoyCat} (Selected)`, data:markets.map(c=>getAED(currData,c,yoyCat)), backgroundColor:color, borderRadius:4},
+      {label:`${yoyCat} (YoY)`, data:markets.map(c=>getAED(yoyData,c,yoyCat)), backgroundColor:colorDim, borderRadius:4}
+    ]}, options:{...opts}});
+}
+
+function switchYoYCat(cat, el) {
+  yoyCat = cat;
+  document.querySelectorAll('.yoy-cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderYoYChart();
+}
+
 function renderCharts() {
   const markets = MARKET_ORDER.filter(c => currData[c] || prevWeekData[c]);
   const labels = markets.map(c => MARKET_SHORT[c]||c);
-  document.getElementById('chart-section').innerHTML = `<div class="chart-grid">
-    <div class="chart-card"><div class="chart-title">Revenue by Market (AED) — Today vs Prev Week</div><div class="chart-wrap"><canvas id="ch-market"></canvas></div></div>
-    <div class="chart-card"><div class="chart-title">Attractions vs Events Split</div><div class="chart-wrap"><canvas id="ch-split"></canvas></div></div>
-  </div>`;
+  document.getElementById('chart-section').innerHTML = `
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">Revenue by Market (AED) — Today vs Prev Week</div><div class="chart-wrap"><canvas id="ch-market"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Attractions vs Events Split</div><div class="chart-wrap"><canvas id="ch-split"></canvas></div></div>
+    </div>
+    <div class="chart-card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div class="chart-title" style="margin:0">Year-over-Year by Category</div>
+        <div style="display:flex;gap:6px">
+          <button class="yoy-cat-btn date-tab${yoyCat==='Attractions'?' active':''}" onclick="switchYoYCat('Attractions',this)">🎡 Attractions</button>
+          <button class="yoy-cat-btn date-tab${yoyCat==='Events'?' active':''}" onclick="switchYoYCat('Events',this)">🎵 Events</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="ch-yoy"></canvas></div>
+    </div>`;
   setTimeout(() => {
     Object.values(charts).forEach(c=>c.destroy()); charts={};
     const opts = { responsive:true, maintainAspectRatio:false,
@@ -461,6 +500,7 @@ function renderCharts() {
         {label:'Attractions',data:markets.map(c=>getAED(currData,c,'Attractions')),backgroundColor:'#7c3aed',borderRadius:4},
         {label:'Events',data:markets.map(c=>getAED(currData,c,'Events')),backgroundColor:'#0ea5e9',borderRadius:4}
       ]},options:{...opts,scales:{...opts.scales,x:{...opts.scales.x,stacked:true},y:{...opts.scales.y,stacked:true}}}});
+    renderYoYChart();
   },0);
 }
 
